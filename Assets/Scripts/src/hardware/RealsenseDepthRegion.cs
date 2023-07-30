@@ -36,6 +36,7 @@ public class RealsenseDepthRegion : Singleton<RealsenseDepthRegion>
     public TextMeshProUGUI textMeshUiTitle;
     public TextMeshProUGUI textMeshCameraName;
     public TextMeshProUGUI textMeshDebugLog;
+    public bool hideOnInit = true;
 
     [Header("Camera Config")]
     private Pipeline pipe;
@@ -101,7 +102,7 @@ public class RealsenseDepthRegion : Singleton<RealsenseDepthRegion>
     void Start()
     {
         canvas = GetComponent<Canvas>();
-        // canvas.enabled = false;
+        if(hideOnInit) canvas.enabled = false;
         AddSliderListeners();
         LoadConfig();
         InitCamera();
@@ -486,6 +487,6 @@ userZ: {userZ}
 
     public void OnDestroy()
     {
-        if(pipe != null) pipe.Stop();
+        // if(pipe != null) pipe.Stop();
     }
 }
