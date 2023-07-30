@@ -4,7 +4,6 @@ using Unity.Mathematics;
 using Intel.RealSense;
 using System.Threading.Tasks;
 using TMPro;
-// using System.Diagnostics; // interferes with Debug.Log
 
 // Realsense dev docs for vanilla C# wrapper
 // https://dev.intelrealsense.com/docs/csharp-wrapper
@@ -13,7 +12,7 @@ using TMPro;
 // https://github.com/IntelRealSense/librealsense/blob/master/wrappers/csharp/Documentation/pinvoke.md
 
 // Nice-to-haves:
-// - Multiple depthregions  (for the future) - extract camera init and depth region into different objects
+// - Multiple depthregions  (for the future) - extract camera init and depth region into different objects/prefabs
 // - Example scene w/prefabs
 
 [System.Serializable]
@@ -57,7 +56,6 @@ public class RealsenseDepthRegion : Singleton<RealsenseDepthRegion>
     public DepthRegionConfig config;
     private const string configKey = "DepthRegionConfig";
 
-
     // // temporary depth region settings - move this to a UI
 
     [Header("Depth Region Calculated State")]
@@ -75,6 +73,7 @@ public class RealsenseDepthRegion : Singleton<RealsenseDepthRegion>
 
     [SerializeField]
     private int numDepthPixels = 0;
+
     [SerializeField]
     private int dataArraySize = 0;
 
@@ -82,10 +81,10 @@ public class RealsenseDepthRegion : Singleton<RealsenseDepthRegion>
     private float executionTime = 0;
     private System.Diagnostics.Stopwatch stopwatch;
     private Texture2D debugTexture;
+    private Task realsenseThread; // keep for error checking
 
     [Space]
     [Header("Active User Calculated Position")]
-
     [Range(-1f, 1f)]
     public float userX = 0;
 
@@ -109,7 +108,8 @@ public class RealsenseDepthRegion : Singleton<RealsenseDepthRegion>
         Application.quitting += StopCameraOnExit;
     }
 
-    void AddSliderListeners() {
+    void AddSliderListeners()
+    {
         sliderLeft.onValueChanged.AddListener(delegate { config.left = (int)sliderLeft.value; DepthRegionUpdated(true); });
         sliderRight.onValueChanged.AddListener(delegate { config.right = (int)sliderRight.value; DepthRegionUpdated(true); });
         sliderTop.onValueChanged.AddListener(delegate { config.top = (int)sliderTop.value; DepthRegionUpdated(true); });
@@ -142,7 +142,7 @@ public class RealsenseDepthRegion : Singleton<RealsenseDepthRegion>
         PlayerPrefs.Save();
     }
 
-    void UpdateSlidersFromConfig() 
+    void UpdateSlidersFromConfig()
     {
         sliderLeft.value = config.left;
         sliderRight.value = config.right;
@@ -155,9 +155,9 @@ public class RealsenseDepthRegion : Singleton<RealsenseDepthRegion>
         sliderDebugScale.value = config.debugScale;
     }
 
-    void DepthRegionUpdated(bool rebuildTexture) 
+    void DepthRegionUpdated(bool rebuildTexture)
     {
-        if(rebuildTexture) debugTexture = null;
+        if (rebuildTexture) debugTexture = null;
         SaveConfig();
     }
 
@@ -167,14 +167,17 @@ public class RealsenseDepthRegion : Singleton<RealsenseDepthRegion>
         StartRealsenseThread();
     }
 
-    void CheckCameraConnected() {
+    void CheckCameraConnected()
+    {
         Context ctx = new Context();
         var list = ctx.QueryDevices(); // Get a snapshot of currently connected devices
-        if (list.Count == 0) 
+        if (list.Count == 0)
         {
             textMeshCameraName.text = "No device detected. Is it plugged in?";
             textMeshCameraName.color = Color.red;
-        } else {
+        }
+        else
+        {
             Device device = list[0];
             textMeshCameraName.text = "Camera initialized: <b>" + device.Info[CameraInfo.Name] + "</b>";
         }
@@ -205,12 +208,25 @@ public class RealsenseDepthRegion : Singleton<RealsenseDepthRegion>
 
     void StartRealsenseThread()
     {
-        Task.Factory.StartNew(InitRealsenseRawDepth, TaskCreationOptions.LongRunning);
+        realsenseThread = Task.Factory.StartNew(InitRealsenseRawDepth, TaskCreationOptions.LongRunning);
+    }
+
+    void CheckRealsenseThreadErrors()
+    {
+        if (realsenseThread != null)
+        {
+            if (realsenseThread.IsFaulted)
+            {
+                Debug.LogError("Background thread error: " + realsenseThread.Exception);
+                // realsenseThread = null;
+            }
+        }
     }
 
     void StopCameraOnExit()
     {
-        if(pipe != null && depthData != null) pipe.Stop();
+        if (pipe != null && depthData != null)
+            pipe.Stop();
     }
 
     void BuildDebugTexture()
@@ -246,12 +262,16 @@ public class RealsenseDepthRegion : Singleton<RealsenseDepthRegion>
         // Update the UI RawImage, and resize to match the texture size
         RawImage rawImage = GetComponentInChildren<RawImage>();
         RectTransform rectTransform = rawImage.GetComponent<RectTransform>();
-        rectTransform.sizeDelta = new Vector2(debugTextureW * 2 * config.debugScale, debugTextureH * 2 * config.debugScale);
+        rectTransform.sizeDelta = new Vector2(
+            debugTextureW * 2 * config.debugScale,
+            debugTextureH * 2 * config.debugScale
+        );
         rawImage.texture = debugTexture;
     }
 
     void Update()
     {
+        CheckRealsenseThreadErrors();
         UpdateSilhouetteTexture();
         CheckUserActive();
         CheckKeyboardToggle();
@@ -263,8 +283,8 @@ public class RealsenseDepthRegion : Singleton<RealsenseDepthRegion>
         float easeStep = 2f * Time.deltaTime; // should take a half second to switch from 0 to 1
         userActiveEased += (userActiveFrame) ? easeStep : -easeStep;
         userActiveEased = Mathf.Clamp(userActiveEased, 0f, 1f);
-        if(userActiveEased == 0) userActive = false;
-        if(userActiveEased == 1) userActive = true;
+        if (userActiveEased == 0) userActive = false;
+        if (userActiveEased == 1) userActive = true;
     }
 
     void CheckKeyboardToggle()
@@ -287,19 +307,39 @@ public class RealsenseDepthRegion : Singleton<RealsenseDepthRegion>
         {
             // update with threaded data
             debugTexture.SetPixelData(dataArray, 0, 0);
-            
+
             // draw debug lines into texture data
-            DrawLine(debugTexture, new Vector2(0, debugTextureH / 2), new Vector2(debugTextureW, debugTextureH / 2), Color.white);
-            DrawLine(debugTexture, new Vector2(debugTextureW / 2, 0), new Vector2(debugTextureW / 2, debugTextureH), Color.white);
-            
+            DrawLine(
+                debugTexture,
+                new Vector2(0, debugTextureH / 2),
+                new Vector2(debugTextureW, debugTextureH / 2),
+                Color.white
+            );
+            DrawLine(
+                debugTexture,
+                new Vector2(debugTextureW / 2, 0),
+                new Vector2(debugTextureW / 2, debugTextureH),
+                Color.white
+            );
+
             // draw input position crosshair
             Color posColor = (userActive) ? Color.white : Color.red;
             int xSize = 3;
             int userXPos = (int)math.remap(-1f, 1f, 0f, debugTextureW, userX);
             int userYPos = (int)math.remap(1f, -1f, 0f, debugTextureH, userY);
-            DrawLine(debugTexture, new Vector2(userXPos - xSize, userYPos - xSize), new Vector2(userXPos + xSize, userYPos + xSize), posColor);
-            DrawLine(debugTexture, new Vector2(userXPos - xSize, userYPos + xSize), new Vector2(userXPos + xSize, userYPos - xSize), posColor);
-            
+            DrawLine(
+                debugTexture,
+                new Vector2(userXPos - xSize, userYPos - xSize),
+                new Vector2(userXPos + xSize, userYPos + xSize),
+                posColor
+            );
+            DrawLine(
+                debugTexture,
+                new Vector2(userXPos - xSize, userYPos + xSize),
+                new Vector2(userXPos + xSize, userYPos - xSize),
+                posColor
+            );
+
             // commit texture to GPU
             debugTexture.Apply(false);
         }
@@ -328,22 +368,23 @@ public class RealsenseDepthRegion : Singleton<RealsenseDepthRegion>
 
         // iterate over debug texture size, multiplying by pixel skip to access raw depth data grid
         // also takes into account the region specified by left/right/top/bottom
-        bool safeToRead = dataArray.Length > 0; // && textureSizeDirty == false;
-        
-        int pixelIndex = dataArray.Length - 3;
-        if(safeToRead) 
+        bool safeToRead = dataArray != null && dataArray.Length > 0; // && textureSizeDirty == false;
+
+        if (safeToRead)
         {
+            int pixelIndex = dataArray.Length - 3;
             for (int y = 0; y < debugTextureH; y++)
             {
                 for (int x = 0; x < debugTextureW; x++)
                 {
                     int sampleY = config.top + y * config.pixelSkip;
                     int sampleX = config.left + x * config.pixelSkip;
-                    float pixelDepth = depthData.GetDistance(sampleX, sampleY);
+                    bool sampleInBounds = sampleX < depthData.Width && sampleY < depthData.Height;  // protect against resized texture/data in thread
+                    float pixelDepth = (sampleInBounds) ? depthData.GetDistance(sampleX, sampleY) : 15f;
                     if (pixelDepth > config.near && pixelDepth < config.far)
                     {
                         // set debug pixel with depth awareness
-                        byte col = (byte) math.floor(math.remap(config.near, config.far, 255f, 100f, pixelDepth));
+                        byte col = (byte)math.floor(math.remap(config.near, config.far, 255f, 100f, pixelDepth));
                         dataArray[pixelIndex] = 0;
                         dataArray[pixelIndex + 1] = col;
                         dataArray[pixelIndex + 2] = 0;
@@ -356,16 +397,16 @@ public class RealsenseDepthRegion : Singleton<RealsenseDepthRegion>
                     else
                     {
                         // set debug pixel
-                        byte col = (byte) math.floor(math.remap(config.far, 5, 50, 0f, pixelDepth)); // 5 is max distance for practical use
+                        byte col = (byte)math.floor(math.remap(config.far, 5, 50, 0f, pixelDepth)); // 5 is max distance for practical use
                         dataArray[pixelIndex] = col;
                         dataArray[pixelIndex + 1] = col;
                         dataArray[pixelIndex + 2] = col;
                     }
 
                     // advance through depth array
-                    // b/c of threading, the texture size and dataArray can be different sizes. 
+                    // b/c of threading, the texture size and dataArray can be different sizes.
                     // make sure we stay in bounds of the array, or we get silent errors that disable the camera thread
-                    if(pixelIndex > 0) pixelIndex -= 3;
+                    if (pixelIndex > 0) pixelIndex -= 3;
                 }
             }
         }
@@ -412,9 +453,9 @@ public class RealsenseDepthRegion : Singleton<RealsenseDepthRegion>
         }
     }
 
-    void UpdateDebugView() 
+    void UpdateDebugView()
     {
-        textMeshDebugLog.text = 
+        textMeshDebugLog.text =
 $@"<b>Depth Region Config:</b>
 left: {config.left}
 right: {config.right}
@@ -443,8 +484,8 @@ userZ: {userZ}
 ";
     }
 
-    // public void OnDestroy()
-    // {
-    //     if(pipe != null) pipe.Stop();
-    // }
+    public void OnDestroy()
+    {
+        if(pipe != null) pipe.Stop();
+    }
 }
