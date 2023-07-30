@@ -79,6 +79,8 @@ crashlytics-build.properties
 # Haxademic.cs additions
 Assets/Vendor/RealSenseSDK2.0
 Assets/Vendor/RealSenseSDK2.0.meta
+Assets/Vendor/TextMesh Pro
+Assets/Vendor/TextMesh Pro.meta
 
 # macOS
 .DS_Store
