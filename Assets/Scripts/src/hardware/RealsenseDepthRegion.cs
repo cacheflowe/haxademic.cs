@@ -219,7 +219,6 @@ public class RealsenseDepthRegion : Singleton<RealsenseDepthRegion>
             if (realsenseThread.IsFaulted)
             {
                 Debug.LogError("Background thread error: " + realsenseThread.Exception);
-                // realsenseThread = null;
             }
         }
     }

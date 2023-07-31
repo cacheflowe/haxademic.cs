@@ -71,7 +71,6 @@ public class DashboardPoster : MonoBehaviour
         // Send the request and wait for the response
         yield return request.SendWebRequest();
 
-
         // Check for errors
         if (request.result == UnityWebRequest.Result.ConnectionError)
         {

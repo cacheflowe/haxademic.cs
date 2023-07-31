@@ -8,4 +8,16 @@ public class MathUtil : Object
     {
         return low2 + (value - low1) * (high2 - low2) / (high1 - low1);
     }
+
+    public static float Saw( float rads ) {
+        float pi = Mathf.PI;
+        float twoPi = pi * 2;
+        rads += pi / 2;             // offset to sync up with sin(0)
+        var percent = ( rads % pi ) / pi;
+        var dir = ( rads % (twoPi) > pi ) ? -1 : 1;
+        percent *= 2 * dir;
+        percent -= dir;
+        return percent;
+	}
+
 }
