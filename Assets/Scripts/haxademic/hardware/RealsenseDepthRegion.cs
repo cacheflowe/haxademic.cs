@@ -103,6 +103,13 @@ public class RealsenseDepthRegion : Singleton<RealsenseDepthRegion>
     {
         canvas = GetComponent<Canvas>();
         if(hideOnInit) canvas.enabled = false;
+        #if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+            Init();
+        #endif
+    }
+
+    void Init()
+    {
         AddSliderListeners();
         LoadConfig();
         InitCamera();
