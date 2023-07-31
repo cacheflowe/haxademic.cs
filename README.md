@@ -4,6 +4,9 @@ A personal Unity toolkit and learning exploration.
 
 ## Install/setup
 
+* Add the following Unity packages from the Package Manager
+  * Post Processing
+  * Recorder
 * Add [NativeWebSocket](https://github.com/endel/NativeWebSocket) with a [Git URL](https://github.com/endel/NativeWebSocket.git#upm) from the Package Manager
 * Add Unity's [Mathematics package](https://github.com/Unity-Technologies/Unity.Mathematics) with a [Git URL](https://github.com/Unity-Technologies/Unity.Mathematics.git?path=src) from the Package Manager
 * Add Unity's TextMesh Pro Essential Resources:
