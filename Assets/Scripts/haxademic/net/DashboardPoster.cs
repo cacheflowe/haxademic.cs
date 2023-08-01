@@ -91,7 +91,7 @@ public class DashboardPoster : MonoBehaviour
 
     void Log(string message)
     {
-        if(showDebugLogs) Log("[DashboardPoster] " + message);
+        if(showDebugLogs) Debug.Log("[DashboardPoster] " + message);
     }
 
     public static string GetLocalIPAddress()
