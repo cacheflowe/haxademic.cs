@@ -26,7 +26,7 @@ public class CameraShake : Singleton<CameraShake>
         {
             if (shakeDuration > 0 && shakeAmount > 0)
             {
-                camTransform.localPosition = originalPos + Random.insideUnitSphere * shakeAmount;
+                camTransform.localPosition = originalPos + Random.onUnitSphere * shakeAmount;
                 shakeDuration -= Time.deltaTime * decreaseFactor;
                 shakeAmount -= Time.deltaTime * decreaseFactor;
 
