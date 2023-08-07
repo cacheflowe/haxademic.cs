@@ -30,8 +30,8 @@ public class Mouse : Object
   }
 
   static Vector3 mousePos;
-  static Vector3 mouseCenterOffset = new Vector3(0.5f, 0.5f, 0.0f);
-  public static Vector3 posCentered() {
+  static Vector3 mouseCenterOffset = new(0.5f, 0.5f, 0.0f);
+  public static Vector3 PosCentered() {
     return Camera.main.ScreenToViewportPoint(Input.mousePosition) - mouseCenterOffset;
   }
 
